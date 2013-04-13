@@ -60,7 +60,7 @@ function munin_lock () {
 	# is LOCKED!
 	# try for 30 seconds, in 1 second intervals.
 	COUNT=0
-	while [ -f "${MUNIN_RAMFS_LOCK}" ]; then
+	while [ -f "${MUNIN_RAMFS_LOCK}" ]; do
 		sleep 1
 		COUNT=$((COUNT+1))
 		if [ $(COUNT) -gt 30 ]; then
@@ -238,7 +238,7 @@ function munin_stop () {
 	# resync munin data RAMFS->DISK
 	#
 	/bin/touch "${MUNIN_RAMFS_LOCK}"
-	/usr/bin/rsync --bwlimit=10000 -a "${MUNIN_DBDIR_RAMF}/" "${MUNIN_DBDIR_ORIG}/"
+	/usr/bin/rsync --bwlimit=10000 -a "${MUNIN_DBDIR_RAMFS}/" "${MUNIN_DBDIR_ORIG}/"
 	/bin/rm -f "${MUNIN_RAMFS_LOCK}"
 
 	# unmount.

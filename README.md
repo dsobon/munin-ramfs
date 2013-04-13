@@ -4,12 +4,20 @@ munin-ramfs
 synchronise munin rrd files between persistent storage (disk) and non-persistent
 storage (ramfs) to reduce disk IO to bare minimum.
 
+requirements
+============
+* rsync
+* make
+* munin
+
 install
 =======
 ```
-# make install
-# /usr/sbin/update-rc.d munin-ramfs defaults
-# /etc/init.d/munin-ramfs start
+$ sudo make install
+$ sudo $(EDITOR) /etc/munin/munin.conf
+$ sudo $(EDITOR) /etc/default/munin-ramfs
+$ sudo /usr/sbin/update-rc.d munin-ramfs defaults
+$ sudo /etc/init.d/munin-ramfs start
 ```
 
 features
@@ -28,4 +36,4 @@ limitations
 
 author
 ======
-David Sobon <d@sobon.org>
+David Sobon &lt; d at sobon dot org &gt;
