@@ -2,7 +2,7 @@ munin-ramfs
 ===========
 
 synchronise munin rrd files between persistent storage (disk) and non-persistent
-storage (ramfs) to reduce disk IO to bare minimum.
+storage (ramfs) to reduce disk IO.
 
 requirements
 ============
@@ -14,8 +14,8 @@ install
 =======
 ```
 $ sudo make install
-$ sudo $(EDITOR) /etc/munin/munin.conf
-$ sudo $(EDITOR) /etc/default/munin-ramfs
+$ sudo /etc/alternatives/editor /etc/munin/munin.conf
+$ sudo /etc/alternatives/editor /etc/default/munin-ramfs
 $ sudo /usr/sbin/update-rc.d munin-ramfs defaults
 $ sudo /etc/init.d/munin-ramfs start
 ```
@@ -29,9 +29,9 @@ features
 limitations
 ===========
 * up to 1 hour of rrd data files may be lost if init stop script is not executed.
-* graph files (png,html) are still generated onto persistent disk.
+* graph files (png,html) are still generated onto persistent storage.
 * munin-cron-graph does not handle failover (*_ORIG location) if ramfs is not started/mounted.
-* no error handling if all rrd data files exceed free ram.
+* no error handling if rrd data total size exceeds available free ram.
 * tested on Debian stable ("squeeze" 6.0) with DRBD and pacemaker.
 
 author
