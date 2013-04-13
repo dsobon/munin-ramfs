@@ -1,0 +1,24 @@
+#!/bin/bash
+#  about: clean up stray rrd files due to host-based plugin config changes.
+# author: David Sobon <d@sobon.org>
+#   date: 29 Aug 2011.
+#####
+
+MUNIN_RAMFS_DEFAULT="/etc/default/munin-ramfs"
+[ ! -f "${MUNIN_RAMFS_DEFAULT}" ] && exit 0
+. "${MUNIN_RAMFS_DEFAULT}"
+
+CTIME="+31"
+
+# data: rrd
+if [ -d "${MUNIN_DBDIR_RAMFS} " ]; then
+	/usr/bin/find "${MUNIN_DBDIR_RAMFS}" \
+		-name "*.rrd" \
+		-ctime "${CTIME}" -exec rm -f {} \;
+fi
+
+# www: png,html
+/usr/bin/find "/var/cache/munin/www" \
+	-mindepth 2 \
+	\( -name "*.html" -o -name "*.png" \) \
+	-ctime "${CTIME}" -exec rm -f {} \;

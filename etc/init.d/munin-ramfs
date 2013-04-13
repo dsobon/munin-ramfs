@@ -1,0 +1,290 @@
+#!/bin/bash
+#  about: pseudo munin init script, to copy data files between disk and ramfs, on start, stop and status.
+# author: David Sobon <d@sobon.org>
+#   date: 28 Mar 2013
+#####
+
+### BEGIN INIT INFO
+# Provides:          munin-ramfs
+# Required-Start:    $local_fs $remote_fs
+# Required-Stop:     $local_fs $remote_fs
+# Should-Start:      $all
+# Should-Stop:       $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/stop munin-ramfs
+# Description:       Start/stop munin-ramfs
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+NAME="munin-ramfs"
+DESC="munin-ramfs"
+
+MUNIN_RAMFS_MOUNT="/mnt/ram"
+MUNIN_DBDIR_RAMFS="${MUNIN_RAMFS_MOUNT}/munin-data"
+MUNIN_DBDIR_ORIG="/var/lib/munin"
+MUNIN_RAMFS_LOCK="/var/lock/munin-ramfs"
+MUNIN_RAMFS_RSYNC="${MUNIN_RAMFS_MOUNT}/munin-rsync"
+
+MUNIN_RAMFS_DEFAULT="/etc/default/munin-ramfs"
+
+if [ -f "${MUNIN_RAMFS_DEFAULT}" ]; then
+	. "${MUNIN_RAMFS_DEFAULT}"
+fi
+
+#####
+# munin_lock()
+# 0 - no lock, 1 - LOCK
+#
+function munin_lock () {
+	# no lock file.
+	if [ ! -f "${MUNIN_RAMFS_LOCK}" ]; then
+		echo "$NAME is NOT locked."
+		exit 0
+	fi
+
+	#
+	# check if two munin-ramfs status is running at the same time
+	#
+	STAT=`/usr/bin/stat -c'%Y' "${MUNIN_RAMFS_LOCK}"`
+	NOW=`/bin/date +'%s'`
+
+	# stale lock.
+        if [ $((NOW - STAT)) -gt 600 ]; then
+		echo "$NAME is NOT locked (stale removed)."
+		/usr/bin/unlink "${MUNIN_RAMFS_LOCK}"
+		exit 0
+	fi
+
+	# is LOCKED!
+	# try for 30 seconds, in 1 second intervals.
+	COUNT=0
+	while [ -f "${MUNIN_RAMFS_LOCK}" ]; then
+		sleep 1
+		COUNT=$((COUNT+1))
+		if [ $(COUNT) -gt 30 ]; then
+			echo "$NAME is locked."
+			exit 1
+		fi
+	done
+
+	# is NOT LOCKED!
+	if [ $(COUNT) -eq  0 ]; then
+		echo "$NAME is NOT locked."
+	else
+		echo "$NAME is NOT locked (sleep for $COUNT seconds)."
+	fi
+
+	exit 0
+}
+
+#####
+# get_status()
+#
+get_status () {
+	# check if munin data dir exists (useful for DISK test)
+	if [ ! -d "${MUNIN_DBDIR_ORIG}" ]; then
+		return 3
+	fi
+
+	# check ramfs mount
+	/bin/mountpoint -q "${MUNIN_RAMFS_MOUNT}"
+	EXIT=$?
+
+	# is not running.
+	if [ $EXIT -ne 0 ]; then
+		return 3
+	fi
+
+	#
+	# ok... it's mounted - check RAMFS->DISK last rsync delta.
+	#
+
+	# this should not happen.
+	if [ ! -f "${MUNIN_RAMFS_RSYNC}" ]; then
+		echo "warn: $NAME: status - ${MUNIN_RAMFS_RSYNC} should exist!"
+		return 0
+	fi
+
+	STAT=`/usr/bin/stat -c'%Y' "${MUNIN_RAMFS_RSYNC}"`
+	NOW=`/bin/date +'%s'`
+
+        # stale; resync back to DISK!
+        if [ $((NOW - STAT)) -gt 3600 ]; then
+		/bin/touch "${MUNIN_RAMFS_RSYNC}"
+		/bin/touch "${MUNIN_RAMFS_LOCK}"
+		/usr/bin/rsync --bwlimit=10000 -a "${MUNIN_DBDIR_RAMFS}/" "${MUNIN_DBDIR_ORIG}/"
+		/bin/rm -f "${MUNIN_RAMFS_LOCK}"
+	fi
+
+	return 0
+}
+
+#####
+# munin_status()
+#
+munin_status () {
+	get_status
+	EXIT=$?
+
+	[ $EXIT = 0 ] && echo "$NAME is running."
+	[ $EXIT = 1 ] && echo "$NAME is NOT running; pid file exists."
+	[ $EXIT = 2 ] && echo "$NAME is NOT running; lock file exists."
+	[ $EXIT = 3 ] && echo "$NAME is NOT running."
+	[ $EXIT = 4 ] && echo "$NAME status is UNKNOWN."
+
+	exit $EXIT
+}
+
+#####
+# munin_start
+#
+function munin_start () {
+	# check if munin data dir exists (useful for DISK test)
+	# if not, bail out, since we cannot really do much else.
+	if [ ! -d "${MUNIN_DBDIR_ORIG}" ]; then
+		echo "error: $NAME: start - ${MUNIN_DBDIR_ORIG} does not exist!"
+		return 1
+	fi
+
+	# check ramfs mount
+	/bin/mountpoint -q "${MUNIN_RAMFS_MOUNT}"
+	EXIT=$?
+
+	#
+	# if already mounted, then something is wrong! so lets try to fix the situation.
+	#
+        if [ $EXIT -eq 0 ]; then
+		echo "warn: $NAME: start - ${MUNIN_RAMFS_MOUNT} already mounted! unmounting"
+		/bin/umount "${MUNIN_RAMFS_MOUNT}"
+		EXIT=$?
+
+		if [ $EXIT -ne 0 ]; then
+			echo "error: $NAME: start - unmount ${MUNIN_RAMFS_MOUNT} failed"
+			return 1
+		fi
+	fi
+
+	# not mounted.
+	/bin/mount -o user=munin "${MUNIN_RAMFS_MOUNT}"
+	EXIT=$?
+
+	# er, mount failed.
+	if [ $EXIT -ne 0 ]; then
+		echo "error: $NAME: start - could not mount ${MUNIN_RAMFS_MOUNT}"
+		return 1
+	fi
+
+	#
+	# mount successful - resync munin data DISK->RAMFS first time.
+	#
+	/bin/touch "${MUNIN_RAMFS_RSYNC}"
+	/bin/touch "${MUNIN_RAMFS_LOCK}"
+	/usr/bin/rsync --bwlimit=10000 -a "${MUNIN_DBDIR_ORIG}/" "${MUNIN_DBDIR_RAMFS}"
+	/bin/rm -f "${MUNIN_RAMFS_LOCK}"
+
+	return 0
+}
+
+#####
+# munin_stop
+#
+function munin_stop () {
+	# check if munin data dir exists (useful for DISK test)
+	# if not, bail out, since we cannot really do much else.
+	if [ ! -d "${MUNIN_DBDIR_ORIG}" ]; then
+		echo "error: $NAME: stop - ${MUNIN_DBDIR_ORIG} does not exist!"
+		return 1
+	fi
+
+	# check ramfs mount
+	/bin/mountpoint -q "${MUNIN_RAMFS_MOUNT}"
+	EXIT=$?
+
+	#
+	# if already unmounted, then we can't really do much...
+	#
+        if [ $EXIT -ne 0 ]; then
+		echo "warn: $NAME: stop - ${MUNIN_RAMFS_MOUNT} already unmounted!"
+		return 0
+	fi
+
+	#
+	# check if munin-{update,graph,limits,html} is running.
+	# note: munin-* should create pid file so status can be checked the proper way.
+	#
+	while true; do
+		RETRY=0
+
+		for PROC in munin-update munin-graph munin-limits munin-html; do
+			X=`/usr/bin/pgrep -u munin $PROC | wc -l`
+			if [ $X -gt 0 ]; then
+				RETRY=1
+				sleep 10
+				break
+			fi
+		done
+
+		if [ $RETRY -gt 0 ]; then
+			continue
+		fi
+
+		# ok, nothing munin related is running by cron, we hope!
+		break
+	done
+
+	#
+	# resync munin data RAMFS->DISK
+	#
+	/bin/touch "${MUNIN_RAMFS_LOCK}"
+	/usr/bin/rsync --bwlimit=10000 -a "${MUNIN_DBDIR_RAMF}/" "${MUNIN_DBDIR_ORIG}/"
+	/bin/rm -f "${MUNIN_RAMFS_LOCK}"
+
+	# unmount.
+	/bin/umount "${MUNIN_RAMFS_MOUNT}"
+	EXIT=$?
+
+	# er, umount failed.
+	if [ $EXIT -ne 0 ]; then
+		echo "error: $NAME: stop - could not umount ${MUNIN_RAMFS_MOUNT}"
+		return 1
+	fi
+
+	return 0
+}
+
+################################################################
+
+case "$1" in
+	start)
+		echo -n "Starting $DESC: "
+		munin_start
+		echo "$NAME."
+		;;
+	stop)
+		echo -n "Stopping $DESC: "
+		munin_stop
+		echo "$NAME."
+		;;
+	restart|force-reload)
+		echo -n "Restarting $DESC: "
+		munin_stop
+		sleep 1
+		munin_start
+		echo "$NAME."
+		;;
+	status)
+		munin_status
+		;;
+	status-lock)
+		munin_lock
+		;;
+	*)
+		N=/etc/init.d/$NAME
+		echo "Usage: $N {start|stop|restart|force-reload|status|status-lock}" >&2
+		exit 1
+		;;
+esac
+
+exit 0

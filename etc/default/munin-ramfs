@@ -1,0 +1,18 @@
+#
+# options for munin-ramfs
+#
+
+# mount point for ramfs-based munin data directory.
+MUNIN_RAMFS_MOUNT="/mnt/ram"
+
+# munin dbdir non-persistent (ramfs) location.
+MUNIN_DBDIR_RAMFS="${MUNIN_RAMFS_MOUNT}/munin-data"
+
+# munin dbdir persistent storage location.
+MUNIN_DBDIR_ORIG="/var/lib/munin"
+
+# munin-ramfs lock file, used before/after rsync.
+MUNIN_RAMFS_LOCK="/var/lock/munin-ramfs"
+
+# munin-ramfs timestamp file of last rsync.
+MUNIN_RAMFS_RSYNC="${MUNIN_RAMFS_MOUNT}/munin-rsync"

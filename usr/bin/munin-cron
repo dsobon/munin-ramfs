@@ -1,0 +1,28 @@
+#!/bin/sh
+
+MUNIN_RAMFS_DEFAULT="/etc/default/munin-ramfs"
+[ ! -f "${MUNIN_RAMFS_DEFAULT}" ] && exit 0
+. "${MUNIN_RAMFS_DEFAULT}"
+
+# if data dir does not exist, exit.
+[ -d "${MUNIN_DBDIR_RAMFS}" ] || exit 1
+
+/etc/init.d/munin-ramfs status >/dev/null || exit 1
+/etc/init.d/munin-ramfs status-lock >/dev/null || exit 1
+
+/usr/bin/ionice -c3 -p$$ > /dev/null 2>&1
+
+# This used to test if the executables were installed.  But that is
+# perfectly redundant and supresses errors that the admin should see.
+
+/usr/share/munin/munin-update $@ || exit 1
+
+#
+# limits.
+#
+if [ -x /usr/share/munin/munin-limits ]; then
+	/usr/share/munin/munin-limits \
+		--force \
+		--contact nagios \
+		--contact old-nagios
+fi

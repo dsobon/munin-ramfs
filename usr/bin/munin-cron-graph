@@ -1,0 +1,26 @@
+#!/bin/sh
+
+MUNIN_RAMFS_DEFAULT="/etc/default/munin-ramfs"
+[ ! -f "${MUNIN_RAMFS_DEFAULT}" ] && exit 0
+. "${MUNIN_RAMFS_DEFAULT}"
+
+# if data dir does not exist, exit.
+[ -d "${MUNIN_DBDIR_RAMFS}" ] || exit 1
+
+/etc/init.d/munin-ramfs status >/dev/null || exit 1
+/etc/init.d/munin-ramfs status-lock >/dev/null || exit 1
+
+/usr/bin/ionice -c3 -p$$ > /dev/null 2>&1
+
+# The result of munin-limits is needed by munin-html but not by
+# munin-graph.  So run it in the background now, it will be done
+# before munin-graph.
+
+/usr/share/munin/munin-limits $@ &
+
+nice /usr/share/munin/munin-graph --cron $@ 2>&1 |
+	fgrep -v "*** attempt to put segment in horiz list twice"
+
+wait
+
+nice /usr/share/munin/munin-html $@ || exit 1

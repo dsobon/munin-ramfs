@@ -1,0 +1,6 @@
+#
+# cron-jobs for munin
+#
+
+# m  h    DOM  Mon  DOW  USER   CMD
+20   6    1    *    *    munin  if [ -x /usr/bin/munin-rrd-cleanup ]; then /usr/bin/munin-rrd-cleanup; fi
