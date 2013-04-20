@@ -168,7 +168,8 @@ function munin_start () {
 
 	# graphs
 	/bin/mkdir "${MUNIN_RAMFS_MOUNT}/munin-www"
-	/bin/mount -o user=munin "${MUNIN_WWW_MOUNT}"
+	/bin/chown munin.munin "${MUNIN_RAMFS_MOUNT}/munin-www"
+	/bin/mount "${MUNIN_WWW_MOUNT}"
 	# does not matter if it fails.
 
 	#
