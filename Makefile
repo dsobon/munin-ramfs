@@ -46,6 +46,7 @@ uninstall:
 	perl -ni -e 'print unless m#/mnt/ram#' /etc/fstab
 	# stop.
 	/etc/init.d/munin-ramfs stop
+	rmdir /mnt/ram/munin-www
 	rmdir /mnt/ram
 	# final.
 	rm /etc/init.d/munin-ramfs
