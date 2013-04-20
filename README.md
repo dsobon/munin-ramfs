@@ -22,14 +22,13 @@ $ sudo /etc/init.d/munin-ramfs start
 
 features
 ========
-* reduce disk IO by more than 50%.
-  (one example: from 30 IOPS [update + graph] to 10 IOPS avg [graph only])
+* reduce disk IO to nearly zero.
+* graphs are now generated onto volatile (ramfs) storage.
 * transparently works with DRBD and pacemaker.
 
 limitations
 ===========
 * up to 1 hour of rrd data files may be lost if init stop script is not executed.
-* graph files (png,html) are still generated onto persistent storage.
 * munin-cron-graph does not handle failover (*_ORIG location) if ramfs is not started/mounted.
 * no error handling if rrd data total size exceeds available free ram.
 * tested on Debian stable ("squeeze" 6.0) with DRBD and pacemaker.

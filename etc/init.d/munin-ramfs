@@ -21,6 +21,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME="munin-ramfs"
 DESC="munin-ramfs"
 
+MUNIN_WWW_MOUNT="/var/cache/munin/www"
 MUNIN_RAMFS_MOUNT="/mnt/ram"
 MUNIN_DBDIR_RAMFS="${MUNIN_RAMFS_MOUNT}/munin-data"
 MUNIN_DBDIR_ORIG="/var/lib/munin"
@@ -151,30 +152,24 @@ function munin_start () {
 	# check ramfs mount
 	/bin/mountpoint -q "${MUNIN_RAMFS_MOUNT}"
 	EXIT=$?
-
-	#
-	# if already mounted, then something is wrong! so lets try to fix the situation.
-	#
         if [ $EXIT -eq 0 ]; then
-		echo "warn: $NAME: start - ${MUNIN_RAMFS_MOUNT} already mounted! unmounting"
-		/bin/umount "${MUNIN_RAMFS_MOUNT}"
-		EXIT=$?
-
-		if [ $EXIT -ne 0 ]; then
-			echo "error: $NAME: start - unmount ${MUNIN_RAMFS_MOUNT} failed"
-			return 1
-		fi
+		echo "${MUNIN_RAMFS_MOUNT} already mounted"
 	fi
 
 	# not mounted.
 	/bin/mount -o user=munin "${MUNIN_RAMFS_MOUNT}"
 	EXIT=$?
 
-	# er, mount failed.
+	# mount failed.
 	if [ $EXIT -ne 0 ]; then
 		echo "error: $NAME: start - could not mount ${MUNIN_RAMFS_MOUNT}"
 		return 1
 	fi
+
+	# graphs
+	/bin/mkdir "${MUNIN_RAMFS_MOUNT}/munin-www"
+	/bin/mount -o user=munin "${MUNIN_WWW_MOUNT}"
+	# does not matter if it fails.
 
 	#
 	# mount successful - resync munin data DISK->RAMFS first time.
@@ -242,6 +237,7 @@ function munin_stop () {
 	/bin/rm -f "${MUNIN_RAMFS_LOCK}"
 
 	# unmount.
+	/bin/umount "${MUNIN_WWW_MOUNT}"
 	/bin/umount "${MUNIN_RAMFS_MOUNT}"
 	EXIT=$?
 

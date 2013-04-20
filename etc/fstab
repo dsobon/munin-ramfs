@@ -1,1 +1,3 @@
-none            /mnt/ram        ramfs   defaults,user        0 0
+#	.	.	.	.	.	.
+none                    /mnt/ram                ramfs   defaults,user        0 0
+/mnt/ram/munin-www	/var/cache/munin/www	none	defaults,user,bind   0 0
