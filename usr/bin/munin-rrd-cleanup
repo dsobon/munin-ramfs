@@ -11,14 +11,16 @@ MUNIN_RAMFS_DEFAULT="/etc/default/munin-ramfs"
 CTIME="+31"
 
 # data: rrd
-if [ -d "${MUNIN_DBDIR_RAMFS} " ]; then
+if [ -d "${MUNIN_DBDIR_RAMFS}" ]; then
 	/usr/bin/find "${MUNIN_DBDIR_RAMFS}" \
 		-name "*.rrd" \
 		-ctime "${CTIME}" -exec rm -f {} \;
 fi
 
 # www: png,html
-/usr/bin/find "/var/cache/munin/www" \
-	-mindepth 2 \
-	\( -name "*.html" -o -name "*.png" \) \
-	-ctime "${CTIME}" -exec rm -f {} \;
+if [ -d "${MUNIN_WWW_MOUNT}" ]; then
+	/usr/bin/find "${MUNIN_WWW_MOUNT}" \
+		-mindepth 2 \
+		\( -name "*.html" -o -name "*.png" \) \
+		-ctime "${CTIME}" -exec rm -f {} \;
+fi

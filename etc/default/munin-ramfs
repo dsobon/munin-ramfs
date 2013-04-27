@@ -11,6 +11,9 @@ MUNIN_DBDIR_RAMFS="${MUNIN_RAMFS_MOUNT}/munin-data"
 # munin dbdir persistent storage location.
 MUNIN_DBDIR_ORIG="/var/lib/munin"
 
+# munin www dir
+MUNIN_WWW_MOUNT="/var/cache/munin/www"
+
 # munin-ramfs lock file, used before/after rsync.
 MUNIN_RAMFS_LOCK="/var/lock/munin-ramfs"
 
